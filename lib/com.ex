@@ -11,7 +11,7 @@ defmodule Com do
     #data = String.split(data, " ")
 
     #Node.list()
-    childs = Enum.map(1..3, fn item -> start_child(item) end)
+    childs = Enum.map(1..3, fn item -> start_child(_,item) end)
     headNode = start_head( 3, childs)
     #Enviar la función junto con dato a cada nodo
     send(headNode, {:execute_head, data, fun})
@@ -19,8 +19,17 @@ defmodule Com do
     :ok
   end
 
-  def configure_net() do
-    VintageNe
+  def configure_net(ip) do
+    VintageNet.configure("eth0", %{
+      type: VintageNetEthernet,
+      ipv4: %{
+        method: :static,
+        address: "192.168.1.#{ip+1}",
+        prefix_length: 24,
+        gateway: "192.168.1.1",
+        nameservers: ["1.1.1.1"]
+      }
+    })
   end
 
   def start_head( size, childs) do
@@ -28,8 +37,8 @@ defmodule Com do
   end
 
 
-  def start_child(node) do
-    # Enum.each(1..3, fn _ -> Node.spawn(Child, :loop_child, []) end)
+  def start_child(node,item) do
+    #configure_net(item)
     spawn(fn -> loop_child() end)
   end
 
