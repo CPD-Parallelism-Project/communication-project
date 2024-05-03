@@ -33,6 +33,7 @@ defmodule Com do
   end
 
   def start_head( size, childs) do
+    #configure_net(0)
     spawn(__MODULE__, :loop_head, [size, %{}, childs])
   end
 
