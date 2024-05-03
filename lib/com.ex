@@ -83,6 +83,7 @@ defmodule Com do
 
   def random_time do
     :timer.sleep(Enum.random(1..10) * 300)
+    Node.list() |> Enum.reduce(0, fn node, acc -> acc + 1 end)
   end
 
 end
