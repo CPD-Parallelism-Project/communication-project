@@ -22,26 +22,27 @@ defmodule Com do
     :ok
   end
 
-  def receive_test(node) do
-    Node.spawn(node, fn ->
-      receive do
-        {:test, origin} -> send(origin, {:ack, "correct"})
-      end
-    end )
+  def receive_test() do
+    receive do
+      {:test, origin} -> send(origin, {:ack, "correct"})
+    end
   end
 
   def send_test() do
     connect_children()
+    # Crea un proceso local dentro del nodo para recibir el mensaje
     pidOrigin = Node.spawn(Node.self(), fn ->
       receive do
         {:ack, message} -> IO.puts(message)
       end
     end )
+    # Crea
     # hd(Node.list())
-    receive_test(Node.self())
-    |> send({:test,x pidOrigin})
-
+    Node.spawn(hd(Node.list()), fn -> Com.receive_test() end)
+    |> send({:test, pidOrigin})
   end
+
+
 
   def configure_net(ip) do
     VintageNet.configure("eth0", %{
@@ -58,13 +59,13 @@ defmodule Com do
 
   def start_head( size) do
     #configure_net(0)
-    Node.spawn(Node.self(), fn -> loop_head(size, %{}) end)
+    Node.spawn_link(Node.self(), fn -> loop_head(size, %{}) end)
   end
 
 
   def start_child(node, index) do
     #configure_net(item)
-    Node.spawn(node, fn -> loop_child(index) end )
+    Node.spawn_link(node, fn -> loop_child(index) end )
   end
 
   def loop_child(index) do
