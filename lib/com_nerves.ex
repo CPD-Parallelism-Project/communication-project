@@ -35,16 +35,13 @@ defmodule Com do
 
   def send_test() do
     connect_children()
-    # Crea un proceso local dentro del nodo para recibir el mensaje
-    pidOrigin = Node.spawn(Node.self(), fn ->
-      receive do
-        {:ack, message} -> IO.puts(message)
-      end
-    end )
-    # Crea
-    # hd(Node.list())
     Node.spawn(hd(Node.list()), fn -> Com.receive_test() end)
-    |> send({:test, pidOrigin})
+    |> send({:test, sefl()})
+
+    receive do
+      {:ack, message} -> IO.puts(message)
+    end
+    z
   end
 
 
