@@ -3,7 +3,12 @@ defmodule Com do
   def test do
     data = "head"
     #start_cluster(data, &test_function/1)
+    configure(0)
     send_test()
+  end
+
+  def configure(group) do
+    Node.start(:"com@#group_#{group}")
   end
 
   def start_cluster(data, fun) do
