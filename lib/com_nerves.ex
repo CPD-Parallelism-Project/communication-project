@@ -1,30 +1,34 @@
-defmodule Com do
+defmodule ComNerves do
 
   def test do
-    data = "head"
-    #start_cluster(data, &test_function/1)
-    configure(0)
-    send_test()
+    data = "head 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 8 7 6 5 4 3 2 2 5 6 8 0 6 4 23 2 3 4 5 6 7 89 0 6 3 1 1 1 1 1 1 Hola hola HOLA HO,la 1 1 1 1 1 1 head"
+    configure(5)
+    start_cluster(data, &Exercise1.e1_split_function/2, &Exercise1.e1_function/1, &Exercise1.e1_merge_function/2)
+    #send_test()
   end
 
   def configure(group) do
     Node.start(:"com@#group_#{group}")
   end
 
-  def start_cluster(data, fun) do
+  def start_cluster(data, fun_split, fun, converge) do
     size = connect_children()
     IO.puts("Nodes number: #{size}")
-    #Partir la información para iniciar los procesos con información distribuida
-    #data = String.split(data, " ")
+    parallel_constant = 4
 
-    childs = Node.list() |> Enum.with_index() |> Enum.map( fn {node, index} -> start_child(node, index) end)
-    IO.puts("childs")
-    IO.inspect(childs)
-    headNode = start_head(size)
+    headNode = start_head(size*parallel_constant, converge)
+    childs = Node.list()
+      |> Enum.with_index()
+      |> Enum.flat_map( fn {node, index} -> Enum.map(0..parallel_constant, fn x -> start_child(node,  "#{index} #{x}", headNode) end) end)
+    parallel_workers = length(childs)
+    data_splited = fun_split.(data, parallel_workers)
+
     #Enviar la función junto con dato a cada nodo
-    send(headNode, {:execute_head, data, fun, size})
-    childs |> Enum.each(fn pid -> send(pid, {:execute, fun, "node", headNode}) end )
+    for {value, index} <- Enum.with_index(childs) do
+      send(value, {:execute, fun, Enum.at(data_splited, index) , headNode})
+    end
     :ok
+
   end
 
   def receive_test() do
@@ -36,12 +40,11 @@ defmodule Com do
   def send_test() do
     connect_children()
     Node.spawn(hd(Node.list()), fn -> Com.receive_test() end)
-    |> send({:test, sefl()})
+    |> send({:test, nil})
 
     receive do
       {:ack, message} -> IO.puts(message)
     end
-    z
   end
 
 
@@ -59,14 +62,23 @@ defmodule Com do
     })
   end
 
-  def start_head( size) do
+  def start_head(size, converge) do
     #configure_net(0)
-    Node.spawn_link(Node.self(), fn -> loop_head(size, %{}) end)
+    Node.spawn_link(Node.self(), fn -> loop_head(size, %{}, size, converge) end)
   end
 
+  def loop_head(size, rta, workers, converge) do
+    map = receive do
+      {:end, node, data, index} ->  Map.put(rta, index, data)
+      {:execute_head, data, fun, index} -> Map.put(rta, index, fun.(data))
+    end
+    case size do
+      0 -> converge.(map, Map.keys(map))
+      _ -> loop_head(size - 1, map, workers, converge)
+    end
+  end
 
-  def start_child(node, index) do
-    #configure_net(item)
+  def start_child(node, index, headNode) do
     Node.spawn_link(node, fn -> loop_child(index) end )
   end
 
@@ -76,52 +88,17 @@ defmodule Com do
     end
   end
 
-  def loop_head(size, rta) do
-    map = receive do
-      {:end, node, data, index} ->  Map.put(rta, node, %{data: data, index: index})
-      {:execute_head, data, fun, index} -> Map.put(rta, self(), %{data: fun.(data), index: index})
-    end
-    case size do
-      0 -> converge(map)
-      _ -> loop_head(size - 1, map)
-    end
-
-  end
-
-  defp converge(map) do
-    IO.puts("Función de convergencia")
-    IO.inspect(map)
-  end
-
   # Conectar los nodos disponibles
   defp connect_children() do
-    Node.list() |> Enum.reduce(0, fn node, acc -> Node.connect(node); acc + 1 end )
-  end
+    [
+      :"livebook@grupo-1",
+      #:"livebook@grupo-0",
+      #:"livebook@grupo-0",
+      #:"livebook@grupo-0",
+      #:"livebook@grupo-0",
+    ]
+    |> Enum.reduce(0, fn node, acc -> Node.connect(node); acc + 1 end )
 
-  def test_function(data) do
-    random_time()
-    "Resolved data from #{data}"
-  end
-
-  def random_time do
-    :timer.sleep(Enum.random(1..10) * 300)
   end
 
 end
-
-defmodule Tasks do
-  def task_1 (data) do
-    #Codigo de la primera tarea
-    "Task 1 from #{data}"
-  end
-
-  def task_2 (data) do
-    #Codigo de la segunda tarea
-    "Task 2 from #{data}"
-  end
-
-
-
-end
-
-Com.test()
